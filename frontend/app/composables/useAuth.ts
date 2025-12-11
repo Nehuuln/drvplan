@@ -8,7 +8,7 @@ export const useAuth = () => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await $fetch(`${apiBase}/auth/login`, {
+      const response: any = await $fetch(`${apiBase}/auth/login`, {
         method: 'POST',
         body: { email, password },
       });
@@ -18,6 +18,7 @@ export const useAuth = () => {
 
       if (process.client) {
         localStorage.setItem('token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(response.user));
       }
 
       return { success: true };
@@ -32,7 +33,7 @@ export const useAuth = () => {
 
   const register = async (firstName: string, lastName: string, email: string, password: string, phone?: string) => {
     try {
-      const response = await $fetch(`${apiBase}/auth/register`, {
+      const response: any = await $fetch(`${apiBase}/auth/register`, {
         method: 'POST',
         body: { firstName, lastName, email, password, phone },
       });
@@ -42,6 +43,7 @@ export const useAuth = () => {
 
       if (process.client) {
         localStorage.setItem('token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(response.user));
       }
 
       return { success: true };
@@ -60,6 +62,7 @@ export const useAuth = () => {
     
     if (process.client) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     
     navigateTo('/login');
@@ -69,13 +72,18 @@ export const useAuth = () => {
     if (!token.value) return null;
 
     try {
-      const response = await $fetch(`${apiBase}/auth/me`, {
+      const response: any = await $fetch(`${apiBase}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token.value}`,
         },
       });
 
       user.value = response;
+      
+      if (process.client) {
+        localStorage.setItem('user', JSON.stringify(response));
+      }
+      
       return response;
     } catch (error) {
       console.error('Fetch user error:', error);
@@ -87,8 +95,19 @@ export const useAuth = () => {
   const initAuth = async () => {
     if (process.client) {
       const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
       if (storedToken) {
         token.value = storedToken;
+        
+        if (storedUser) {
+          try {
+            user.value = JSON.parse(storedUser);
+          } catch (e) {
+            console.error('Error parsing stored user:', e);
+          }
+        }
+        
         await fetchUser();
       }
     }
