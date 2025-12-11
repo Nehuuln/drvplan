@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  role      Role     @default(STUDENT)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student    Student?
+  instructor Instructor?
+
+  @@map("users")
+}
+
+model Student {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber  String?  @unique
+  dateOfBirth    DateTime
+  address        String?
+  remainingHours Int      @default(20)  
+  totalHours     Int      @default(20)
+
+  bookings Booking[]
+
+  @@map("students")
+}
+
+model Instructor {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber  String  @unique
+  specialties    String[]
+
+  bookings       Booking[]
+  availabilities Availability[]
+
+  @@map("instructors")
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  studentId    String
+  student      Student       @relation(fields: [studentId], references: [id])
+  instructorId String
+  instructor   Instructor    @relation(fields: [instructorId], references: [id])
+  startTime    DateTime
+  endTime      DateTime
+  status       BookingStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  lessonReport LessonReport?
+
+  @@unique([instructorId, startTime])
+  @@map("bookings")
+}
+
+model Availability {
+  id           String     @id @default(uuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int       
+  startTime    String     
+  endTime      String     
+  isActive     Boolean    @default(true)
+
+  @@map("availabilities")
+}
+
+model LessonReport {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  skills    Json     
+  comments  String?
+  duration  Int      
+  weather   String?
+  createdAt DateTime @default(now())
+
+  @@map("lesson_reports")
+}
