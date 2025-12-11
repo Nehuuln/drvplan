@@ -74,8 +74,8 @@ export const useAuth = () => {
     try {
       const response: any = await $fetch(`${apiBase}/auth/me`, {
         headers: {
-          Authorization: `Bearer ${token.value}`,
-        },
+         'Authorization': `Bearer ${token.value}`,
+        } as HeadersInit,
       });
 
       user.value = response;
