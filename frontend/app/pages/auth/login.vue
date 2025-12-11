@@ -75,7 +75,7 @@ const handleLogin = async () => {
   loading.value = false;
 
   if (result.success) {
-    router.push('/');
+    router.push('/dashboard');
   } else {
     error.value = result.error || 'Login failed';
   }

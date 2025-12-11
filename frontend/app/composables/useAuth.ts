@@ -4,6 +4,7 @@ export const useAuth = () => {
   
   const token = useState<string | null>('auth-token', () => null);
   const user = useState<any>('auth-user', () => null);
+  const isAuthenticated = computed(() => !!token.value);
 
   const login = async (email: string, password: string) => {
     try {
@@ -21,7 +22,11 @@ export const useAuth = () => {
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.data?.message || 'Login failed' };
+      console.error('Login error:', error);
+      return { 
+        success: false, 
+        error: error.data?.message || error.message || 'Login failed' 
+      };
     }
   };
 
@@ -41,7 +46,11 @@ export const useAuth = () => {
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: error.data?.message || 'Registration failed' };
+      console.error('Register error:', error);
+      return { 
+        success: false, 
+        error: error.data?.message || error.message || 'Registration failed' 
+      };
     }
   };
 
@@ -57,7 +66,7 @@ export const useAuth = () => {
   };
 
   const fetchUser = async () => {
-    if (!token.value) return;
+    if (!token.value) return null;
 
     try {
       const response = await $fetch(`${apiBase}/auth/me`, {
@@ -67,24 +76,28 @@ export const useAuth = () => {
       });
 
       user.value = response;
+      return response;
     } catch (error) {
+      console.error('Fetch user error:', error);
       logout();
+      return null;
     }
   };
 
-  const initAuth = () => {
+  const initAuth = async () => {
     if (process.client) {
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         token.value = storedToken;
-        fetchUser();
+        await fetchUser();
       }
     }
   };
 
   return {
-    token,
-    user,
+    token: readonly(token),
+    user: readonly(user),
+    isAuthenticated,
     login,
     register,
     logout,

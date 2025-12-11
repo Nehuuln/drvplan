@@ -16,6 +16,11 @@ export default <RouterConfig>{
       name: 'register',
       path: '/register',
       component: () => import('~/pages/auth/register.vue').then(r => r.default || r)
-    }
+    },
+    {
+      name: 'dashboard',
+      path: '/dashboard',
+      component: () => import('~/pages/dashboard/index.vue').then(r => r.default || r)
+    },
   ],
 }
