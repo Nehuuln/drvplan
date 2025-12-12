@@ -30,15 +30,48 @@ export class AuthService {
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
         phone: registerDto.phone,
+        role: registerDto.role || 'STUDENT',
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        avatar: true,
+        createdAt: true,
       },
     });
 
-    return this.generateTokens(user.id, user.email);
+    if (user.role === 'STUDENT') {
+      await this.prisma.student.create({
+        data: {
+          userId: user.id,
+          dateOfBirth: registerDto.dateOfBirth || new Date('2000-01-01'), 
+          remainingHours: 20,
+          totalHours: 20,
+        },
+      });
+    }
+
+    return this.generateTokens(user);
   }
 
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        avatar: true,
+        createdAt: true,
+      },
     });
 
     if (!user) {
@@ -51,7 +84,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokens(user.id, user.email);
+
+    const { password, ...userWithoutPassword } = user;
+
+    return this.generateTokens(userWithoutPassword);
   }
 
   async validateUser(userId: string) {
@@ -64,17 +100,27 @@ export class AuthService {
         lastName: true,
         phone: true,
         role: true,
+        avatar: true,
         createdAt: true,
       },
     });
   }
 
-  private generateTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  private generateTokens(user: any) {
+    const payload = { sub: user.id, email: user.email };
     
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: userId, email },
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        role: user.role,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
+      },
     };
   }
 }
