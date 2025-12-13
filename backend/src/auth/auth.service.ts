@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -12,7 +13,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, response: Response) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
     });
@@ -55,10 +56,10 @@ export class AuthService {
       });
     }
 
-    return this.generateTokens(user);
+    return this.setAuthCookie(user, response);
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, response: Response) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
       select: {
@@ -84,10 +85,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-
     const { password, ...userWithoutPassword } = user;
 
-    return this.generateTokens(userWithoutPassword);
+    return this.setAuthCookie(userWithoutPassword, response);
   }
 
   async validateUser(userId: string) {
@@ -106,11 +106,31 @@ export class AuthService {
     });
   }
 
-  private generateTokens(user: any) {
+  logout(response: Response) {
+    response.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return { message: 'Logged out successfully' };
+  }
+
+  private setAuthCookie(user: any, response: Response) {
     const payload = { sub: user.id, email: user.email };
-    
+    const token = this.jwtService.sign(payload);
+
+    // Cookie HttpOnly 
+    response.cookie('access_token', token, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', 
+      sameSite: 'lax', 
+      maxAge: 7 * 24 * 60 * 60 * 1000, 
+      path: '/',
+    });
+
     return {
-      access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
