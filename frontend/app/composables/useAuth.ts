@@ -2,24 +2,18 @@ export const useAuth = () => {
   const config = useRuntimeConfig();
   const apiBase = config.public.apiBase;
   
-  const token = useState<string | null>('auth-token', () => null);
   const user = useState<any>('auth-user', () => null);
-  const isAuthenticated = computed(() => !!token.value);
+  const isAuthenticated = computed(() => !!user.value);
 
   const login = async (email: string, password: string) => {
     try {
       const response: any = await $fetch(`${apiBase}/auth/login`, {
         method: 'POST',
         body: { email, password },
+        credentials: 'include',
       });
 
-      token.value = response.access_token;
       user.value = response.user;
-
-      if (process.client) {
-        localStorage.setItem('token', response.access_token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
 
       return { success: true };
     } catch (error: any) {
@@ -36,15 +30,10 @@ export const useAuth = () => {
       const response: any = await $fetch(`${apiBase}/auth/register`, {
         method: 'POST',
         body: { firstName, lastName, email, password, phone },
+        credentials: 'include',
       });
 
-      token.value = response.access_token;
       user.value = response.user;
-
-      if (process.client) {
-        localStorage.setItem('token', response.access_token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
 
       return { success: true };
     } catch (error: any) {
@@ -56,65 +45,44 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
-    token.value = null;
-    user.value = null;
-    
-    if (process.client) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+  const logout = async () => {
+    try {
+      await $fetch(`${apiBase}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      user.value = null;
+      navigateTo('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      user.value = null;
+      navigateTo('/login');
     }
-    
-    navigateTo('/login');
   };
 
   const fetchUser = async () => {
-    if (!token.value) return null;
-
     try {
       const response: any = await $fetch(`${apiBase}/auth/me`, {
-        headers: {
-         'Authorization': `Bearer ${token.value}`,
-        } as HeadersInit,
+        credentials: 'include',
       });
 
       user.value = response;
-      
-      if (process.client) {
-        localStorage.setItem('user', JSON.stringify(response));
-      }
-      
       return response;
     } catch (error) {
       console.error('Fetch user error:', error);
-      logout();
+      user.value = null;
       return null;
     }
   };
 
   const initAuth = async () => {
     if (process.client) {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      
-      if (storedToken) {
-        token.value = storedToken;
-        
-        if (storedUser) {
-          try {
-            user.value = JSON.parse(storedUser);
-          } catch (e) {
-            console.error('Error parsing stored user:', e);
-          }
-        }
-        
-        await fetchUser();
-      }
+      await fetchUser();
     }
   };
 
   return {
-    token: readonly(token),
     user: readonly(user),
     isAuthenticated,
     login,
